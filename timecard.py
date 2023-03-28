@@ -318,12 +318,6 @@ def close_timecard():
     self.db.close()
 
 
-def main():
-    '''Main method'''
-    open_timecard()
-    init_tables()
-    close_timecard()
-
-
 if __name__ == '__main__':
-    main()
+    import interface
+    interface.main(self)
