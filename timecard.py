@@ -112,6 +112,17 @@ def get_paid_punches_by_timecard(timecard_id, paid = True):
 
 
 @require_database
+def get_last_punch_by_timecard(timecard_id):
+    '''Retrieves a set of punches by timecard ID'''
+    select_punches = 'select * from punches where timecard = ? order by time_in desc limit 1'
+    punch = self.db.execute(select_punches, [timecard_id]).fetchone()
+    punch = row_to_dict(punch)
+    if punch is not None:
+        punch = convert_record_to_datetime(punch)
+    return punch
+
+
+@require_database
 def get_completed_punches_by_timecard(timecard_id):
     '''Retrieves all completed punches by timecard ID'''
     select_punches = \
@@ -123,11 +134,13 @@ def get_completed_punches_by_timecard(timecard_id):
     return punches
 
 
+# TODO: Add card_key field such that multiple timecards may be managed by the same owner.
+# Use case: a lawyer at a law firm maintains multiple time records for multiple clients.
 @require_database
 def create_timecard(owner = None, descr = None):
     '''Creates a new timecard with optional owner and description'''
     deactivate_existing_timecards = \
-    'update timecards set active = false where owner = ? and descr = ?'
+    'update timecards set active = false where owner = ?'
     create_new_timecard = \
     'insert into timecards (owner, descr) values (?, ?)'
     retrieve_created_timecard = \
@@ -138,7 +151,7 @@ def create_timecard(owner = None, descr = None):
     if not descr:
         descr = 'Week ' + str(date.today().isocalendar().week)
     #try:
-    self.db.execute(deactivate_existing_timecards, [owner, descr])
+    self.db.execute(deactivate_existing_timecards, [owner])
     self.db.execute(create_new_timecard, [owner, descr])
     self.db.commit()
     #except sqlite3.IntegrityError as e:
@@ -148,6 +161,28 @@ def create_timecard(owner = None, descr = None):
         result = result['id']
     else:
         result = None
+    return result
+
+
+@require_database
+def finalize_timecard(timecard_id):
+    '''Finalizes an existing timecard, locking in all punches'''
+    deactivate_timecard = \
+    'update timecards set active = false where id = ?'
+    self.db.execute(deactivate_timecard, [timecard_id])
+    self.db.commit()
+
+
+@require_database
+def mark_timecard_reported(timecard_id):
+    '''Marks an existing timecard as reported'''
+    deactivate_timecard = \
+    'update timecards set reported = current_timestamp where id = ?'
+    timecard = get_timecard(timecard_id)
+    result = True
+    if not timecard['active']:
+        self.db.execute(deactivate_timecard, [timecard_id])
+        self.db.commit()
     return result
 
 
@@ -163,7 +198,18 @@ def get_timecard(timecard_id):
 
 
 @require_database
-def get_timecards_by_owner(owner):
+def get_all_timecards():
+    '''Gets all active timecards'''
+    select_timecards = 'select * from timecards'
+    timecards = self.db.execute(select_timecards)
+    timecards = rows_to_dicts(timecards)
+    if timecards is not None:
+        timecards = list(map(convert_record_to_datetime, timecards))
+    return timecards
+
+
+@require_database
+def get_all_timecards_by_owner(owner):
     '''Gets all timecards associated with an owner'''
     select_timecards = 'select * from timecards where owner = ?'
     timecards = self.db.execute(select_timecards, [owner])
@@ -174,7 +220,7 @@ def get_timecards_by_owner(owner):
 
 
 @require_database
-def get_all_active_timecards(active = True):
+def get_active_timecards(active=True):
     '''Gets all active timecards'''
     select_timecards = 'select * from timecards where active = ?'
     timecards = self.db.execute(select_timecards, [active])
@@ -185,7 +231,7 @@ def get_all_active_timecards(active = True):
 
 
 @require_database
-def get_active_timecards_by_owner(owner, active = True):
+def get_active_timecards_by_owner(owner, active=True):
     '''Gets all active timecards associated with an owner'''
     select_timecards = 'select * from timecards where owner = ? and active = ?'
     timecards = self.db.execute(select_timecards, [owner, active])
@@ -196,8 +242,10 @@ def get_active_timecards_by_owner(owner, active = True):
 
 
 @require_database
-def punch_in(timecard_id, paid=True, descr = 'Time worked'):
+def punch_in(timecard_id, paid=True, descr=None):
     '''Records the time an employee starts their shift or other recorded time'''
+    if descr is None:
+        descr = 'Time Worked'
     deactivate_old_punches = \
     'update punches set active = false where timecard = ?'
     punch_timecard = \
@@ -229,8 +277,7 @@ def get_paid_time_summary(timecard_id):
     for punch in completed_punches:
         if not punch['paid']: # Lunch or break? Probably
             continue
-        the_date = punch['time_in'].date()
-        date_key = the_date.isoformat()
+        date_key = punch['time_in'].date().isoformat()
         hours = None
         if 'time_out' in punch and punch['time_out'] is not None:
             hours = punch['time_out'] - punch['time_in']
@@ -240,7 +287,7 @@ def get_paid_time_summary(timecard_id):
             report[date_key]['hours'] += hours
         else:
             report[date_key] = {
-                'date': the_date,
+                'date': punch['time_in'],
                 'hours': hours
             }
     return list(report.values())
@@ -283,10 +330,6 @@ def init_tables():
         CREATE INDEX timecard_active_owner_idx
         ON timecards(owner, active)
         ''',
-        'timecard_one_owner_and_descr':'''
-        CREATE UNIQUE INDEX timecard_one_owner_and_descr
-        ON timecards(owner, descr)
-        ''',
         'active_punches_idx': '''
         CREATE INDEX active_punches_idx 
         ON punches(timecard, active)
@@ -307,8 +350,10 @@ def init_tables():
     self.db.commit()
 
 
-def open_timecard(filename = 'timecard.db'):
+def open_timecard(filename = None):
     '''Creates a SQLite database reference for time recording'''
+    if filename is None:
+        filename = 'timecard.db'
     self.db = sqlite3.connect(filename)
     self.db.row_factory = sqlite3.Row
 
