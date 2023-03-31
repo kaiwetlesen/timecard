@@ -174,7 +174,7 @@ def perform_list(timecard, args):
 def perform_report(timecard, args):
     '''Performs the print report function'''
     report_type = args.report
-    timecard_id = select_timecard(timecard, args, active=False)
+    timecard_id = select_timecard(timecard, args)
     timecard_record = timecard.get_timecard(timecard_id)
 
     if report_type == 'timeworked':
@@ -337,7 +337,10 @@ def display_punch_report(punch_records):
         desc = punch['descr'][:11]
         paid = 'Yes' if punch['paid'] else 'No'
         t_in = punch['time_in'].astimezone().strftime(self.timeformat_short)
-        t_out = punch['time_out'].astimezone().strftime(self.timeformat_short)
+        if punch['time_out']:
+            t_out = punch['time_out'].astimezone().strftime(self.timeformat_short)
+        else:
+            t_out = 'N/A'
         date = punch['time_in'].astimezone().strftime(self.dateformat_short)
         if date == seen_date: # then clear it, so that we only get one date printed per day
             date = ''
@@ -353,7 +356,7 @@ def display_punch_report(punch_records):
                 first_line = False
 
         print(
-            f'│ {date:^8} │ {t_in:^7} │ {t_out:^7} │ {desc:<19} │ {paid:>4} │'.center(
+            f'│ {date:^8} │ {t_in:^8} │ {t_out:^8} │ {desc:^19} │ {paid:>4} │'.center(
             self.pagewidth
             )
         )
