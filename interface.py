@@ -110,12 +110,12 @@ def perform_punch(timecard, args):
         if timecard.punch_in(timecard_id, punch_paid, punch_descr):
             print(f'Punched in on timecard {timecard_id}{punch_descr_display}{paid_display}')
         else:
-            print('Cannot punch in on timecard {timecard_id}')
+            print(f'Cannot punch in on timecard {timecard_id}')
     elif punch_type == 'out':
         if timecard.punch_out(timecard_id):
-            print('Punched out on timecard {timecard_id}')
+            print(f'Punched out on timecard {timecard_id}')
         else:
-            print('Cannot punch out on timecard {timecard_id}')
+            print(f'Cannot punch out on timecard {timecard_id}')
     elif punch_type == 'double':
         timecard.punch_out(timecard_id)
         timecard.punch_in(timecard_id, punch_paid, punch_descr)
