@@ -364,5 +364,5 @@ def close_timecard():
 
 
 if __name__ == '__main__':
-    import interface
-    interface.main(self)
+    from interface import main
+    main(self)
