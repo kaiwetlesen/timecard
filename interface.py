@@ -313,6 +313,9 @@ def display_timecard_report_header(record):
 
 def display_time_worked_report(work_records):
     '''Prints out a time worked report for a given set of work records'''
+    if work_records is None:
+        print('[─── No Time Worked ───]\n'.center(self.pagewidth))
+        return
     print('[ Time Worked ]'.center(self.pagewidth))
     print( '┌────────────────────┬────────────────────┐'.center(self.pagewidth))
     print( '│     Date Worked    │        Hours       │'.center(self.pagewidth))
@@ -327,6 +330,9 @@ def display_time_worked_report(work_records):
 
 def display_punch_report(punch_records):
     '''Prints a report of all timecard punches'''
+    if punch_records is None:
+        print('[── No Punches Recorded ──]\n'.center(self.pagewidth))
+        return
     print('[ Punch Record ]'.center(self.pagewidth))
     print( '┌──────────┬──────────┬──────────┬─────────────────────┬──────┐'.center(self.pagewidth))
     print( '│   Date   │ Time In  │ Time Out │     Description     │ Paid │'.center(self.pagewidth))
