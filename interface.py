@@ -247,19 +247,38 @@ def perform_get_last_punch(timecard, args):
         print('No punch to show')
 
 
+def interpret_conditional_boolean(value):
+    '''Converts a text 'yes' or 'no' into a proper boolean, preserving unsettedness'''
+    if value in ('y', 'yes'):
+        active = True
+    elif value in ('n', 'no'):
+        active = False
+    else:
+        active = None
+    return active
+
+
 def perform_list(timecard, args):
     '''Performs the list timecards function'''
-    # TODO: make filters actually work
-    if args.list:
-        print('')
-    records = timecard.get_all_timecards()
-    display_timecard_records(records)
-    # Methods:
+    # Timecard Retrieval Methods:
     # - get_timecard
     # - get_all_timecards
     # - get_all_timecards_by_owner
     # - get_active_timecards (true & false)
     # - get_active_timecards_by_owner (true & false)
+
+    # Filtration:
+    active = interpret_conditional_boolean(args.active)
+    owner = args.owner
+    if owner is not None and active is None:
+        records = timecard.get_all_timecards_by_owner(owner)
+    elif owner is None and active is not None:
+        records = timecard.get_active_timecards(active)
+    elif owner is not None and active is not None:
+        records = timecard.get_active_timecards_by_owner(owner, active)
+    else:
+        records = timecard.get_all_timecards()
+    display_timecard_records(records)
 
 
 def perform_report(timecard, args):
@@ -287,7 +306,6 @@ def perform_report(timecard, args):
 
 def display_time_worked_report(work_records):
     '''Prints out a time worked report for a given set of work records'''
-    field_width = 18
     print('Time Worked'.center(68))
     print( '┌────────────────────┬────────────────────┐'.center(68))
     print( '│     Date Worked    │        Hours       │'.center(68))
@@ -325,7 +343,7 @@ def display_punch_report(punch_records):
             if not first_line:
                 print( '│──────────┼──────────┼──────────┼─────────────────────┼──────│'.center(68))
             else:
-                first_line = False;
+                first_line = False
 
         print(f'│ {date:^8} │ {t_in:^7} │ {t_out:^7} │ {desc:<19} │ {paid:>4} │'.center(68))
     print( '└──────────┴──────────┴──────────┴─────────────────────┴──────┘'.center(68))
@@ -377,14 +395,18 @@ def setup_parser():
         applicable to punch ins, double punches, and creation of new timecards
         ''')
         )
-    parser.add_argument('-o', '--owner', help='Select an active timecard based on owner')
+    parser.add_argument('-o', '--owner',
+        help='Select an active timecard owned by owner or create a new timecard based on owner')
     parser.add_argument('-n', '--timecard-number', help='Select a timecard by timecard number')
-    #parser.add_argument('-s', '--status',
-    #    choices=['a','i','f','r','active','inactive','finalized','reported'],
-    #    help='Filters timecards or punches by status')
+    parser.add_argument('-a', '--active',
+        choices=['y','n','yes','no'],
+        help='Filters timecards or punches by their being marked active')
 
     timecard_group = parser.add_argument_group('Timecard Management',
         'Manage new and registered timecards')
+    timecard_group.add_argument('-D', '--display-timecard',
+        help='Displays an existing timecard, selecting the most recent timecard if -n is omitted',
+        action='store_true')
     timecard_group.add_argument('-N', '--new-timecard',
         help='Creates a new timecard', action='store_true')
     timecard_group.add_argument('-F', '--finalize-timecard',
@@ -412,8 +434,8 @@ def setup_parser():
     reporting_group = parser.add_argument_group('Reporting',
         'Generate reports for individual timecards, find timecards, or mark timecards as reported')
     reporting_group.add_argument('-L', '--list',
-        help='List either all owned, all known, all active or inactive, or all reported timecards',
-        choices=['mine', 'all', 'active', 'inactive', 'reported'])
+        help='List timecards based on criteria established by -a and -o',
+        action='store_true')
     reporting_group.add_argument('-R', '--report',
         help=dedent(
             '''
