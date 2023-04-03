@@ -2,6 +2,7 @@
 Command line interface library to the Timecard library
 '''
 import sys
+from os import getenv
 from textwrap import dedent
 from datetime import datetime, timezone
 from getpass import getuser
@@ -28,7 +29,14 @@ self.pagewidth = 79
 def main(timecard):
     '''Main method, invoked by the timecard library'''
     args = setup_parser().parse_args()
-    timecard.open_timecard(args.filename)
+    if args.filename:
+        filename = args.filename
+    elif getenv('TIMECARD_FILENAME'):
+        filename = getenv('TIMECARD_FILENAME')
+    else:
+        filename = 'timecard.db'
+    print('Timecard filename: ' + filename)
+    timecard.open_timecard(filename)
     timecard.init_tables()
     dispatch_action(timecard, args)
     timecard.close_timecard()
@@ -379,7 +387,8 @@ def setup_parser():
                 description='A simple timecard application to help track the time you\'ve worked.',
                 epilog='Copyright (c) Kai M Wetlesen, All Rights Reserved'
             )
-    parser.add_argument('-f', '--filename', default=None)
+    parser.add_argument('-f', '--filename',
+        help='Database name where timecard data is stored')
     parser.add_argument('-d', '--description',
         help=dedent('''
         Description to add to a time punch (e.g. "Lunch", "First Break", etc.) or timecard, only
