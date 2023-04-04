@@ -35,7 +35,6 @@ def main(timecard):
         filename = getenv('TIMECARD_FILENAME')
     else:
         filename = 'timecard.db'
-    print('Timecard filename: ' + filename)
     timecard.open_timecard(filename)
     timecard.init_tables()
     dispatch_action(timecard, args)
@@ -276,6 +275,7 @@ def display_timecard_report_header(record):
     else:
         record['created'] = record['created'].astimezone().strftime(self.dateformat)
     # lhm 2 + lh label 15 + lh field 18 + rh label 13 + rh field 20 + rhm 2 = min_width
+    # Only applicable to report header, individual tables may have longer min_widths
     min_width = 68
     page_width = self.pagewidth
     half_leftover = (self.pagewidth - min_width) // 2
@@ -338,43 +338,54 @@ def display_time_worked_report(work_records):
 
 def display_punch_report(punch_records):
     '''Prints a report of all timecard punches'''
+    # This is a massive function that could stand for a refactor
     if punch_records is None:
         print('[── No Punches Recorded ──]\n'.center(self.pagewidth))
         return
-    print('[ Punch Record ]'.center(self.pagewidth))
-    print( '┌──────────┬──────────┬──────────┬─────────────────────┬──────┐'.center(self.pagewidth))
-    print( '│   Date   │ Time In  │ Time Out │     Description     │ Paid │'.center(self.pagewidth))
-    print( '│──────────┼──────────┼──────────┼─────────────────────┼──────│'.center(self.pagewidth))
+    table_head = [ '[ Punch Record ]',
+                    '┌──────────┬──────────┬──────────┬───────────┬─────────────────────┬──────┐',
+                    '│   Date   │ Time In  │ Time Out │ Duration  │     Description     │ Paid │',
+                    '│──────────┼──────────┼──────────┼───────────┼─────────────────────┼──────│' ]
+    table_hr      = '│──────────┼──────────┼──────────┼───────────┼─────────────────────┼──────│'
+    table_close   = '└──────────┴──────────┴──────────┴───────────┴─────────────────────┴──────┘'
     seen_date = ''
     first_line = True
+    # Print the table header:
+    for line in table_head:
+        print(line.center(self.pagewidth))
+    # Print the table body:
     for punch in punch_records:
+        # Trim up the fields for display in the table:
         desc = punch['descr'][:11]
         paid = 'Yes' if punch['paid'] else 'No'
         t_in = punch['time_in'].astimezone().strftime(self.timeformat_short)
+        # Time out may still be active if a preliminary report is generated:
         if punch['time_out']:
             t_out = punch['time_out'].astimezone().strftime(self.timeformat_short)
+            dur_end = punch['time_out']
         else:
             t_out = 'N/A'
+            dur_end = datetime.now(timezone.utc)
         date = punch['time_in'].astimezone().strftime(self.dateformat_short)
-        if date == seen_date: # then clear it, so that we only get one date printed per day
-            date = ''
-        else:
+        # Calculate the duration for this table row:
+        dur = format_duration_short((dur_end - punch['time_in']))
+
+        # Print out a horizonal table rule followed immediately by the date
+        if date != seen_date:
             seen_date = date
-            if not first_line:
-                print(
-                    '│──────────┼──────────┼──────────┼─────────────────────┼──────│'.center(
-                    self.pagewidth
-                    )
-                )
+            if not first_line: # Prevent a double-printed HR at the top of the table
+                print(table_hr.center(self.pagewidth))
             else:
                 first_line = False
-
+        else: # then clear it, so that we only get one date printed per day
+            date = ''
+        # Print a formatted table row:
         print(
-            f'│ {date:^8} │ {t_in:^8} │ {t_out:^8} │ {desc:^19} │ {paid:>4} │'.center(
+            f'│ {date:^8} │ {t_in:^8} │ {t_out:^8} │ {dur:^9} │ {desc:^19} │ {paid:>4} │'.center(
             self.pagewidth
             )
         )
-    print('└──────────┴──────────┴──────────┴─────────────────────┴──────┘'.center(self.pagewidth))
+    print(table_close.center(self.pagewidth))
     print('')
 
 
@@ -513,3 +524,10 @@ def format_duration(duration):
     else:
         duration_display += str(duration_min) + ' mins'
     return duration_display
+
+
+def format_duration_short(duration):
+    '''Formats a duration in HHh MMm for display in space constrained settings'''
+    duration_hr =  duration.seconds // 3600
+    duration_min = (duration.seconds  % 3600) // 60
+    return str(duration_hr) + 'h ' + str(duration_min) + 'm'

@@ -7,6 +7,7 @@ import sqlite3
 import getpass
 from datetime import date
 from datetime import datetime
+from datetime import timezone
 
 
 # Configure package-level arguments (not exposed in API):
@@ -120,6 +121,20 @@ def get_last_punch_by_timecard(timecard_id):
     if punch is not None:
         punch = convert_record_to_datetime(punch)
     return punch
+
+
+@require_database
+def get_todays_punches(timecard_id, paid=None):
+    '''Retrieves any timecard punches from today'''
+    today = date.today()
+    tomorrow = today.replace(day = today.day + 1)
+    select_todays_punches = \
+    'select * from punches where timecard = ? and time_in >= ? and time_in < ?'
+    punches = self.db.execute(select_todays_punches, [timecard_id, today, tomorrow])
+    punches = rows_to_dicts(punches)
+    if punches is not None:
+        punches = list(map(convert_record_to_datetime, punches))
+    return punches
 
 
 @require_database
@@ -266,6 +281,29 @@ def punch_out(timecard_id):
         self.db.execute(punch_timecard_out, [punch_id])
         self.db.commit()
     return get_punch(punch_id)
+
+
+def get_time_worked_today(timecard_id):
+    '''Gets total time worked today, including any incompleted punches'''
+    now = datetime.now(timezone.utc)
+    todays_punches = get_todays_punches(timecard_id)
+    if not todays_punches:
+        return None
+    time = None
+    for punch in todays_punches:
+        if not punch['paid']: # Lunch or break? Probably
+            continue
+        if 'time_out' in punch and punch['time_out'] is not None:
+            hours = punch['time_out'] - punch['time_in']
+        elif punch['active']: # Then we're still on the clock
+            hours = now - punch['time_in']
+        else: # Didn't punch out! Penalized.
+            hours = punch['time_in'] - punch['time_in']
+        if time is None:
+            time = hours
+        else:
+            time += hours
+    return time
 
 
 def get_paid_time_summary(timecard_id):
