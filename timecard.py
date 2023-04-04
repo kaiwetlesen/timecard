@@ -5,9 +5,11 @@ Timecard: Simple time card management in Python
 import sys
 import sqlite3
 import getpass
+import time
 from datetime import date
 from datetime import datetime
 from datetime import timezone
+from datetime import timedelta
 
 
 # Configure package-level arguments (not exposed in API):
@@ -124,9 +126,12 @@ def get_last_punch_by_timecard(timecard_id):
 
 
 @require_database
-def get_todays_punches(timecard_id, paid=None):
+def get_todays_punches(timecard_id):
     '''Retrieves any timecard punches from today'''
-    today = date.today()
+    # Figure out the beginning of the day in UTC
+    today = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+    today -= today.utcoffset()
+    today = today.replace(tzinfo=timezone.utc)
     tomorrow = today.replace(day = today.day + 1)
     select_todays_punches = \
     'select * from punches where timecard = ? and time_in >= ? and time_in < ?'
@@ -289,7 +294,7 @@ def get_time_worked_today(timecard_id):
     todays_punches = get_todays_punches(timecard_id)
     if not todays_punches:
         return None
-    time = None
+    timeworked = None
     for punch in todays_punches:
         if not punch['paid']: # Lunch or break? Probably
             continue
@@ -299,11 +304,11 @@ def get_time_worked_today(timecard_id):
             hours = now - punch['time_in']
         else: # Didn't punch out! Penalized.
             hours = punch['time_in'] - punch['time_in']
-        if time is None:
-            time = hours
+        if timeworked is None:
+            timeworked = hours
         else:
-            time += hours
-    return time
+            timeworked += hours
+    return timeworked
 
 
 def get_paid_time_summary(timecard_id):
@@ -312,10 +317,15 @@ def get_paid_time_summary(timecard_id):
     if not completed_punches:
         return None
     report = {}
+    # This will cause significant weirdness in the vicinity of DST:
+    tz_offset_seconds = time.altzone if time.daylight else time.timezone
+    tz_offset = timedelta(seconds=tz_offset_seconds)
+    # ...but the truth is there's not a better way to do this, and is
+    # emblematic for why Daylight Savings Time NEEDS TO DIE.
     for punch in completed_punches:
         if not punch['paid']: # Lunch or break? Probably
             continue
-        date_key = punch['time_in'].date().isoformat()
+        date_key = (punch['time_in'] - tz_offset).date().isoformat()
         hours = None
         if 'time_out' in punch and punch['time_out'] is not None:
             hours = punch['time_out'] - punch['time_in']

@@ -54,6 +54,8 @@ def dispatch_action(timecard, args):
         perform_mark_reported(timecard, args)
     elif args.punch:
         perform_punch(timecard, args)
+    elif args.time_worked:
+        perform_get_time_worked(timecard, args)
     elif args.last_punch:
         perform_get_last_punch(timecard, args)
     elif args.last_active:
@@ -129,6 +131,13 @@ def perform_punch(timecard, args):
         print(f'Double punched on timecard {timecard_id}{punch_descr_display}{paid_display}')
     else:
         print(f'Unknown punch type: {punch_type}')
+
+
+def perform_get_time_worked(timecard, args):
+    timecard_id = get_timecard_for_current_user(timecard)
+    duration = format_duration(timecard.get_time_worked_today(timecard_id))
+    duration = duration.replace('hr', 'hour').replace('min','minute').replace(',', ' and')
+    print('You have worked for ' + duration + '.')
 
 
 def perform_get_last_active_punch(timecard, args):
@@ -430,6 +439,8 @@ def setup_parser():
     punch_group.add_argument('-P', '--punch',
         help='Punches in or out on a timecard, or double-punches to punch for break, lunch, etc.',
         choices=['in','out','double'])
+    punch_group.add_argument('-W', '--time-worked', action='store_true',
+        help='Get total time worked for today')
     punch_group.add_argument('-G', '--last-punch', action='store_true',
         help='Show the most recent punch')
     punch_group.add_argument('-A', '--last-active', action='store_true',
