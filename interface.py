@@ -337,10 +337,15 @@ def display_time_worked_report(work_records):
     print( '┌────────────────────┬────────────────────┐'.center(self.pagewidth))
     print( '│     Date Worked    │        Hours       │'.center(self.pagewidth))
     print( '│────────────────────┼────────────────────│'.center(self.pagewidth))
+    total = None
     for entry in work_records:
+        total = total + entry['hours'] if total is not None else entry['hours']
         date = entry['date'].astimezone().strftime(self.dateformat)
         hours = format_duration(entry['hours'])
         print(f'│ {date:^18} │ {hours:^18} │'.center(self.pagewidth))
+    total = format_duration(total)
+    print( '│────────────────────┼────────────────────│'.center(self.pagewidth))
+    print(f'│    Total Hours:    │ {total:^18} │'.center(self.pagewidth))
     print( '└────────────────────┴────────────────────┘'.center(self.pagewidth))
     print('')
 
@@ -521,8 +526,9 @@ def interpret_conditional_boolean(value):
 
 def format_duration(duration):
     '''Formats a duration in HH hrs, MM mins according to English grammar rules'''
-    duration_hr =  duration.seconds // 3600
-    duration_min = (duration.seconds  % 3600) // 60
+    total_seconds = duration.days * 86400 + duration.seconds
+    duration_hr =  total_seconds // 3600
+    duration_min = (total_seconds  % 3600) // 60
 
     duration_display = ''
     if duration_hr == 1:
@@ -539,6 +545,7 @@ def format_duration(duration):
 
 def format_duration_short(duration):
     '''Formats a duration in HHh MMm for display in space constrained settings'''
-    duration_hr =  duration.seconds // 3600
-    duration_min = (duration.seconds  % 3600) // 60
+    total_seconds = duration.days * 86400 + duration.seconds
+    duration_hr =  total_seconds // 3600
+    duration_min = (total_seconds  % 3600) // 60
     return str(duration_hr) + 'h ' + str(duration_min) + 'm'
