@@ -331,7 +331,7 @@ def display_timecard_report_header(record):
 def display_time_worked_report(work_records):
     '''Prints out a time worked report for a given set of work records'''
     if work_records is None:
-        print('[─── No Time Worked ───]\n'.center(self.pagewidth))
+        print('[─── No Completed Time Worked ───]\n'.center(self.pagewidth))
         return
     print('[ Time Worked ]'.center(self.pagewidth))
     print( '┌────────────────────┬────────────────────┐'.center(self.pagewidth))
