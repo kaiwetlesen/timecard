@@ -370,7 +370,7 @@ def display_punch_report(punch_records):
     # Print the table body:
     for punch in punch_records:
         # Trim up the fields for display in the table:
-        desc = punch['descr'][:11]
+        desc = punch['descr'][:19]
         paid = 'Yes' if punch['paid'] else 'No'
         t_in = punch['time_in'].astimezone().strftime(self.timeformat_short)
         # Time out may still be active if a preliminary report is generated:
