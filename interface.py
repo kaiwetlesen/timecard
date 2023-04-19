@@ -283,6 +283,12 @@ def display_timecard_report_header(record):
         record['created'] = 'Error'
     else:
         record['created'] = record['created'].astimezone().strftime(self.dateformat)
+    if record['active']:
+        status = 'Active'
+    elif not record['active'] and not record['reported']:
+        status = 'Finalised'
+    else:
+        status = 'Reported'
     # lhm 2 + lh label 15 + lh field 18 + rh label 13 + rh field 20 + rhm 2 = min_width
     # Only applicable to report header, individual tables may have longer min_widths
     min_width = 68
@@ -296,16 +302,19 @@ def display_timecard_report_header(record):
     # Horizontal rule width
     hr_width = self.pagewidth - 2
     # Minimum header label and whitespace dimensions:
+    # >2 26                                    2 <
+    # >             Horizontal Rule              <
     # >2 13                 3  10              2 <
     # >2 13                 3  10              2 <
-    # >              Blank Line                  <
-    # >2 13                                      <
+    # >2 13                 [--- Not Used ---] 2 <
+    # >2 26                                    2 <
     # >             Horizontal Rule              <
     header_format='''
     {:^{page_width}}
     {:^{page_width}}
       Timecard ID: {:<{lhf_width}}   Created : {:<{rhf_width}}
       Owner      : {:<{lhf_width}}   Reported: {:<{rhf_width}}
+      Status     : {:<{lhf_width}}
       Description: {:<{dsf_width}}
     {:^{page_width}}
     '''
@@ -318,6 +327,7 @@ def display_timecard_report_header(record):
         record['created'],
         record['owner'],
         record['reported'],
+        status,
         record['descr'],
         horizontal_rule,
         page_width=page_width,
