@@ -71,8 +71,12 @@ def dispatch_action(timecard, args):
 
 def perform_display_timecard(timecard, args):
     '''Performs the display timecard action'''
+    if not args.timecard_number:
+        title = 'CURRENT TIMECARD'
+    else:
+        title = None
     timecard_id = select_timecard(timecard, args)
-    display_single_timecard(timecard.get_timecard(timecard_id))
+    display_single_timecard(timecard.get_timecard(timecard_id), title)
 
 
 def perform_new_timecard(timecard, args):
@@ -80,7 +84,7 @@ def perform_new_timecard(timecard, args):
     new_timecard_id = timecard.create_timecard(args.owner, args.description)
     new_timecard = timecard.get_timecard(new_timecard_id)
     print('New timecard created:')
-    display_single_timecard(new_timecard)
+    display_single_timecard(new_timecard, 'Timecard ' + str(new_timecard_id))
 
 
 def perform_finalize_timecard(timecard, args):
@@ -146,8 +150,7 @@ def perform_get_last_active_punch(timecard, args):
     check_timecard_record(timecard, timecard_id)
     punch = timecard.get_punch(timecard.get_active_punch_id(timecard_id))
     if punch:
-        print('Active Punch:')
-        display_single_punch(punch)
+        display_single_punch(punch, 'ACTIVE PUNCH')
     else:
         print('No active punch')
 
@@ -158,8 +161,7 @@ def perform_get_last_punch(timecard, args):
     check_timecard_record(timecard, timecard_id)
     punch = timecard.get_last_punch_by_timecard(timecard_id)
     if punch:
-        print('Last Punch:')
-        display_single_punch(punch)
+        display_single_punch(punch, 'LAST PUNCH')
     else:
         print('No punch to show')
 
@@ -211,7 +213,7 @@ def perform_report(timecard, args):
                         ################################
 
 
-def display_single_timecard(record):
+def display_single_timecard(record, title=None):
     '''Displays a single timecard record in a tabular format'''
     date = record['created'].astimezone().strftime(self.datetimeformat)
     if record['reported']:
@@ -222,7 +224,9 @@ def display_single_timecard(record):
         active = 'Yes'
     else:
         active = 'No'
-    print( 'TIMECARD RECORD'.center(45))
+    if title is None:
+        title = 'TIMECARD'
+    print( title.center(45))
     print( '────────────┬────────────────────────────────')
     print(f'Timecard ID │ {record["id"]}')
     print(f'Description │ {record["descr"]}')
@@ -232,7 +236,7 @@ def display_single_timecard(record):
     print(f'Reported    │ {reported}')
 
 
-def display_single_punch(punch):
+def display_single_punch(punch, title=None):
     '''Displays a single punch record in a tabular format'''
     if not punch:
         return
@@ -240,8 +244,10 @@ def display_single_punch(punch):
     if punch['paid']:
         pay_display = 'Yes'
     time_in_display = punch['time_in'].astimezone().strftime(self.datetimeformat)
+    if title is None:
+        title = 'PUNCH'
 
-    print( 'PUNCH RECORD'.center(45))
+    print( title.center(45))
     print( '─────────────┬───────────────────────────────')
     print(f' Punch ID    │ {punch["id"]}')
     print(f' Description │ {punch["descr"]}')
