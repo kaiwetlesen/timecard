@@ -222,7 +222,8 @@ def display_single_timecard(record):
         active = 'Yes'
     else:
         active = 'No'
-    print( '────────────┬─────────────────────────────────')
+    print( 'TIMECARD RECORD'.center(45))
+    print( '────────────┬────────────────────────────────')
     print(f'Timecard ID │ {record["id"]}')
     print(f'Description │ {record["descr"]}')
     print(f'Owner       │ {record["owner"]}')
@@ -239,7 +240,9 @@ def display_single_punch(punch):
     if punch['paid']:
         pay_display = 'Yes'
     time_in_display = punch['time_in'].astimezone().strftime(self.datetimeformat)
-    print( '─────────────┬─────────────────────────────────')
+
+    print( 'PUNCH RECORD'.center(45))
+    print( '─────────────┬───────────────────────────────')
     print(f' Punch ID    │ {punch["id"]}')
     print(f' Description │ {punch["descr"]}')
     print(f' Paid        │ {pay_display}')
@@ -492,7 +495,12 @@ def setup_parser():
 def get_timecard_for_current_user(timecard, active=True):
     '''Retrieves any active timecards active for the current user
     Important! Will exit if no existing active timecard is found!'''
-    owner = getuser()
+    # For the instances where username does not correspond to the timecard
+    # user (which should be rare if not transferring between machines):
+    if getenv('TIMECARD_USER'):
+        owner = getenv('TIMECARD_USER')
+    else:
+        owner = getuser()
     timecard_record = timecard.get_active_timecards_by_owner(owner, active)
     timecard_id = None
     if len(timecard_record) == 0:
