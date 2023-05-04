@@ -132,7 +132,7 @@ def get_todays_punches(timecard_id):
     today = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
     today -= today.utcoffset()
     today = today.replace(tzinfo=timezone.utc)
-    tomorrow = today.replace(day = today.day + 1)
+    tomorrow = today + timedelta(days = 1)
     select_todays_punches = \
     'select * from punches where timecard = ? and time_in >= ? and time_in < ?'
     punches = self.db.execute(select_todays_punches, [timecard_id, today, tomorrow])
