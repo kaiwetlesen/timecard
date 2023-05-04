@@ -55,7 +55,7 @@ def dispatch_action(timecard, args):
     elif args.punch:
         perform_punch(timecard, args)
     elif args.time_worked:
-        perform_get_time_worked(timecard, args)
+        perform_get_time_worked(timecard)
     elif args.last_punch:
         perform_get_last_punch(timecard, args)
     elif args.last_active:
@@ -137,7 +137,8 @@ def perform_punch(timecard, args):
         print(f'Unknown punch type: {punch_type}')
 
 
-def perform_get_time_worked(timecard, args):
+def perform_get_time_worked(timecard):
+    '''Perform the get time worked function, prints total time worked'''
     timecard_id = get_timecard_for_current_user(timecard)
     duration = format_duration(timecard.get_time_worked_today(timecard_id))
     duration = duration.replace('hr', 'hour').replace('min','minute').replace(',', ' and')
